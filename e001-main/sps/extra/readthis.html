@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPS: Simple File Encryption Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <header class="bg-blue-600 text-white py-6">
+        <div class="container mx-auto px-4">
+            <h1 class="text-4xl font-bold">SPS: Simple File Encryption Tool</h1>
+            <p class="mt-2 text-lg">Secure file encryption and decryption using XChaCha20-Poly1305</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- Overview -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Overview</h2>
+            <p class="text-lg mb-4">
+                SPS (Simple Protection System) is a command-line tool written in Rust for encrypting and decrypting files using the XChaCha20-Poly1305 authenticated encryption algorithm. It is designed to be secure, efficient, and easy to use, with a focus on processing files in the current working directory. SPS uses a 256-bit key stored in a file (default: <code>key.key</code>) and supports both small and large files through chunked processing.
+            </p>
+            <p class="text-lg">
+                Key features include:
+            </p>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li>Secure encryption with XChaCha20-Poly1305, a modern AEAD cipher.</li>
+                <li>Chunked processing (8 MiB chunks) for memory-efficient handling of large files.</li>
+                <li>Automatic detection of encrypted vs. unencrypted files.</li>
+                <li>Secure key management with memory zeroing.</li>
+                <li>File locking to prevent concurrent access issues.</li>
+                <li>Support for key generation and flexible key file paths.</li>
+            </ul>
+        </section>
+
+        <!-- Installation -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Installation</h2>
+            <p class="text-lg mb-4">
+                SPS is a Rust application. To install it, you need Rust and Cargo installed. Follow these steps:
+            </p>
+            <ol class="list-decimal list-inside ml-4 text-lg">
+                <li>Install Rust: <a href="https://www.rust-lang.org/tools/install" class="text-blue-600 hover:underline">rustup.rs</a></li>
+                <li>Clone the SPS repository or create a project with the provided <code>Cargo.toml</code> and <code>src/main.rs</code>.</li>
+                <li>Run <code>cargo build --release</code> in the project directory to compile the binary.</li>
+                <li>Find the executable in <code>target/release/sps</code>.</li>
+            </ol>
+            <p class="text-lg mt-4">
+                Ensure the binary is in your PATH for easy access.
+            </p>
+        </section>
+
+        <!-- Usage -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Usage</h2>
+            <p class="text-lg mb-4">
+                SPS operates on files in the current directory (no paths allowed). It automatically detects whether to encrypt or decrypt based on the presence of a magic header (<code>SPSv2</code>). Use the following commands:
+            </p>
+            <div class="bg-gray-800 text-white p-4 rounded-lg mb-4">
+                <h3 class="text-xl font-semibold mb-2">Command Syntax</h3>
+                <pre class="text-sm"><code>sps [OPTIONS] &lt;filename&gt;</code></pre>
+                <h3 class="text-xl font-semibold mt-4 mb-2">Options</h3>
+                <ul class="list-disc list-inside ml-4 text-sm">
+                    <li><code>--key-file &lt;PATH&gt;</code>: Path to the key file (default: <code>key.key</code>)</li>
+                    <li><code>--force [encrypt|decrypt]</code>: Force encryption or decryption</li>
+                    <li><code>--generate-key</code>: Generate a new key file (overwrites existing)</li>
+                    <li><code>--verbose</code>: Enable detailed logging</li>
+                </ul>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Examples</h3>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li>Generate a new key: <code>sps --generate-key</code></li>
+                <li>Encrypt a file: <code>sps document.txt</code></li>
+                <li>Decrypt a file: <code>sps document.txt</code></li>
+                <li>Use a custom key file: <code>sps --key-file mykey.key document.txt</code></li>
+                <li>Force encryption: <code>sps --force encrypt document.txt</code></li>
+                <li>Verbose mode: <code>sps --verbose document.txt</code></li>
+            </ul>
+        </section>
+
+        <!-- Cryptographic Design -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Cryptographic Design</h2>
+            <p class="text-lg mb-4">
+                SPS uses <a href="https://libsodium.gitbook.io/doc/secret-key_cryptography/aead#xchacha20-poly1305-ietf" class="text-blue-600 hover:underline">XChaCha20-Poly1305</a>, a secure authenticated encryption with associated data (AEAD) cipher, combining the ChaCha20 stream cipher with Poly1305 for authentication. This ensures both confidentiality and integrity.
+            </p>
+            <h3 class="text-xl font-semibold mb-2">Key Features</h3>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li><strong>Key</strong>: 256-bit key stored in a file (e.g., <code>key.key</code>).</li>
+                <li><strong>Nonce</strong>: 192-bit (24-byte) nonces, derived per chunk (16-byte random base + 8-byte chunk index).</li>
+                <li><strong>Chunking</strong>: Files are processed in 8 MiB chunks, each independently encrypted and authenticated with a 16-byte Poly1305 tag.</li>
+                <li><strong>AAD</strong>: Associated data includes the file header (magic, nonce base, original length) and chunk index, preventing reordering attacks.</li>
+                <li><strong>File Format</strong>: Encrypted files start with a 32-byte header (<code>SPSv2</code> magic, 16-byte nonce base, 8-byte original length), followed by encrypted chunks.</li>
+            </ul>
+            <h3 class="text-xl font-semibold mt-4 mb-2">Security Properties</h3>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li>Unique nonces per chunk prevent reuse vulnerabilities.</li>
+                <li>AAD ensures chunk order and header integrity.</li>
+                <li>Secure random number generation via <code>OsRng</code>.</li>
+                <li>Memory zeroing of keys using the <code>zeroize</code> crate.</li>
+                <li>File locking to prevent concurrent access issues.</li>
+            </ul>
+        </section>
+
+        <!-- Security Considerations -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Security Considerations</h2>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li><strong>Key Management</strong>: The key file must be stored securely. SPS checks permissions on Unix systems (warns if not 0600) and sets secure permissions when generating keys.</li>
+                <li><strong>File Overwrites</strong>: SPS overwrites the input file with the encrypted/decrypted result. Always back up critical data.</li>
+                <li><strong>Wrong Key</strong>: Using an incorrect key during decryption will result in an error ("Decryption failed: wrong key or corrupted file").</li>
+                <li><strong>No Password Support</strong>: SPS uses a raw key file, not a password. For password-based encryption, a key derivation function like Argon2 is recommended (future feature).</li>
+                <li><strong>Temporary Files</strong>: Temporary files are created securely and removed on error, but ensure the filesystem is secure.</li>
+            </ul>
+        </section>
+
+        <!-- Limitations -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Limitations</h2>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li>Files must be in the current directory (no paths allowed).</li>
+                <li>No support for password-based encryption (requires key file).</li>
+                <li>Fixed 8 MiB chunk size (not configurable).</li>
+                <li>No progress bar for large files (planned feature).</li>
+                <li>Limited permission checks on non-Unix systems (e.g., Windows).</li>
+            </ul>
+        </section>
+
+        <!-- Building and Testing -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Building and Testing</h2>
+            <p class="text-lg mb-4">
+                To build SPS, run:
+            </p>
+            <pre class="bg-gray-800 text-white p-4 rounded-lg text-sm"><code>cargo build --release</code></pre>
+            <p class="text-lg mt-4">
+                To add tests, include the following in <code>Cargo.toml</code> under <code>[dev-dependencies]</code>:
+            </p>
+            <pre class="bg-gray-800 text-white p-4 rounded-lg text-sm"><code>tempfile = "3.10"</code></pre>
+            <p class="text-lg mt-4">
+                Example test cases:
+            </p>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li>Encrypt/decrypt empty files.</li>
+                <li>Encrypt/decrypt small files (&lt;8 MiB).</li>
+                <li>Encrypt/decrypt large files (&gt;8 MiB).</li>
+                <li>Test corrupted files and wrong keys.</li>
+            </ul>
+        </section>
+
+        <!-- Source Code -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-semibold mb-4">Source Code</h2>
+            <p class="text-lg">
+                The source code is available in the following files:
+            </p>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li><code>Cargo.toml</code>: Defines dependencies and project metadata.</li>
+                <li><code>src/main.rs</code>: Contains the main logic, including encryption, decryption, and CLI handling.</li>
+            </ul>
+            <p class="text-lg mt-4">
+                Key dependencies include:
+            </p>
+            <ul class="list-disc list-inside ml-4 text-lg">
+                <li><code>chacha20poly1305</code>: For XChaCha20-Poly1305 encryption.</li>
+                <li><code>clap</code>: For command-line argument parsing.</li>
+                <li><code>zeroize</code>: For secure memory zeroing.</li>
+                <li><code>fs2</code>: For file locking.</li>
+            </ul>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-6 text-gray-600">
+            <p>Built with Rust. Licensed under MIT or Apache-2.0.</p>
+            <p>Last updated: October 5, 2025</p>
+        </footer>
+    </main>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threefish-512 File Locker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <header class="bg-blue-600 text-white py-6">
+        <div class="container mx-auto px-4">
+            <h1 class="text-3xl font-bold">Threefish-512 File Locker</h1>
+            <p class="mt-2 text-lg">Securely encrypt and decrypt files using the Threefish-512 cipher and Skein-512 MAC</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Overview</h2>
+            <p class="text-gray-700">
+                The Threefish-512 File Locker is a command-line application written in Rust that allows you to encrypt and decrypt files securely using the Threefish-512 block cipher and Skein-512 Message Authentication Code (MAC). It supports in-place, streaming encryption, making it efficient for large files, and ensures data integrity and confidentiality with robust cryptographic primitives. The app is designed for local file encryption, ideal for protecting sensitive data on your computer.
+            </p>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Installation</h2>
+            <p class="text-gray-700 mb-4">
+                To use the Threefish-512 File Locker, you need to install Rust and set up the application. Follow these steps:
+            </p>
+            <ol class="list-decimal pl-6 text-gray-700 space-y-2">
+                <li>
+                    <strong>Install Rust</strong>: Download and install Rust from <a href="https://www.rust-lang.org/tools/install" class="text-blue-600 hover:underline">rust-lang.org</a>. On Windows, use the installer and select the MSVC toolchain.
+                </li>
+                <li>
+                    <strong>Install Visual Studio Build Tools (Windows)</strong>: Download the Visual Studio Build Tools 2022 from <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/" class="text-blue-600 hover:underline">Microsoft</a>. Select the "Desktop development with C++" workload to include <code>link.exe</code>.
+                </li>
+                <li>
+                    <strong>Clone or Download the Project</strong>: Obtain the source code from its repository or create a new project directory with the provided <code>Cargo.toml</code> and <code>main.rs</code>.
+                </li>
+                <li>
+                    <strong>Build the Application</strong>: Open a terminal (on Windows, use the Developer Command Prompt for Visual Studio), navigate to the project directory, and run:
+                    <pre class="bg-gray-800 text-white p-4 rounded"><code>cargo build --release</code></pre>
+                </li>
+            </ol>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Usage</h2>
+            <p class="text-gray-700 mb-4">
+                The application provides four commands to manage file encryption and verification. Run commands using <code>cargo run -- [command]</code> or the compiled binary (<code>target/release/threefish512_app</code>).
+            </p>
+            <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                <li>
+                    <strong>Generate a Key File</strong>: Creates a random key file for encryption/decryption.
+                    <pre class="bg-gray-800 text-white p-4 rounded"><code>cargo run -- gen-key --out key.key</code></pre>
+                    Default output is <code>key.key</code> (64 bytes). Use <code>--size N</code> for a custom size (16–1024 bytes) or <code>--force</code> to overwrite an existing file.
+                </li>
+                <li>
+                    <strong>Encrypt a File</strong>: Encrypts a file in-place using the key file.
+                    <pre class="bg-gray-800 text-white p-4 rounded"><code>cargo run -- lock --path file.txt --key key.key</code></pre>
+                    Creates a <code>nonces.tf512</code> file in the key’s directory to prevent nonce reuse.
+                </li>
+                <li>
+                    <strong>Decrypt a File</strong>: Decrypts a file in-place using the key file.
+                    <pre class="bg-gray-800 text-white p-4 rounded"><code>cargo run -- unlock --path file.txt --key key.key</code></pre>
+                </li>
+                <li>
+                    <strong>Run Self-Test</strong>: Verifies the Skein-512-512 implementation against a known test vector.
+                    <pre class="bg-gray-800 text-white p-4 rounded"><code>cargo run -- self-test</code></pre>
+                </li>
+            </ul>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Security and Reliability</h2>
+            <p class="text-gray-700 mb-4">
+                The Threefish-512 File Locker is designed to be both secure and reliable for protecting sensitive data, but proper usage is critical to maintain these properties.
+            </p>
+            <h3 class="text-xl font-medium mb-2">Security</h3>
+            <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                <li>
+                    <strong>Strong Cryptography</strong>: Uses Threefish-512, a block cipher with a 512-bit key and 72 rounds, and Skein-512 for message authentication. Both are part of the Skein hash family, a finalist in the SHA-3 competition, with no known practical attacks as of October 2025.
+                </li>
+                <li>
+                    <strong>Nonce Management</strong>: Prevents nonce reuse in CTR mode by maintaining a <code>nonces.tf512</code> file, ensuring each encryption uses a unique 128-bit nonce.
+                </li>
+                <li>
+                    <strong>Key Security</strong>: Keys are derived using Skein-512 with domain separation, and sensitive data is securely erased from memory using the <code>zeroize</code> crate.
+                </li>
+                <li>
+                    <strong>Constant-Time Operations</strong>: Uses constant-time comparisons for MAC verification to prevent timing attacks.
+                </li>
+                <li>
+                    <strong>Considerations</strong>: Store the key file (<code>key.key</code>) securely, preferably on a separate, encrypted device. Avoid reusing the same key file across unrelated projects, as the nonce store is tied to the key. If the nonce store grows large, create a new key file to reset it.
+                </li>
+            </ul>
+            <h3 class="text-xl font-medium mt-4 mb-2">Reliability</h3>
+            <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                <li>
+                    <strong>Atomic Operations</strong>: File encryption and decryption use atomic replacement to prevent partial writes, ensuring data integrity.
+                </li>
+                <li>
+                    <strong>File Locking</strong>: Prevents concurrent access issues using file locking, making it safe for single-user environments.
+                </li>
+                <li>
+                    <strong>Error Handling</strong>: Provides clear error messages for issues like missing key files or authentication failures.
+                </li>
+                <li>
+                    <strong>Testing</strong>: Includes a comprehensive test suite to verify cryptographic correctness and round-trip encryption/decryption.
+                </li>
+                <li>
+                    <strong>Considerations</strong>: Designed for local, single-user use. Not optimized for multi-user or networked environments. Ensure sufficient disk space for temporary files and the nonce store.
+                </li>
+            </ul>
+            <p class="text-gray-700 mt-4">
+                <strong>Recommendation</strong>: The Threefish-512 File Locker is secure and reliable for encrypting sensitive files on a personal computer, provided you manage the key file securely and follow usage instructions. For critical applications, consider consulting a security expert to review your specific use case.
+            </p>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-4">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2025 Threefish-512 File Locker. Licensed under MIT or Apache-2.0.</p>
+        </div>
+    </footer>
+</body>
+</html>
